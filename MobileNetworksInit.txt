@@ -13,4 +13,6 @@ Practical Allocation of RBs:
 Ara 110 RBs allocated ana TTI
 Ara ta processes 8a prepei na trexoyn parallhla mesa se ka8e TTI kai thn idia stigmh o ari8mos apo ta processes na mhn xrhsimopoioun parapanw apo 110 RBs pou einai ta sunolika.
 
-3h ERWTHSH: Ta processes prepei na trexoyn parallhla kai na einai tosa wste na gemizoun mexri 110 RBs ana TTI. O Round Robin 8a exei quantum iso me TTI kai 8a epilegei apo thn oura apo ta aristera pros ta deksia tosa processes wste na mhn gemisoun ta 110 RBs. 8a ta parei kai auta 8a treksoun parallhla kai otan teleiwsei to TTI 8a pane deksia sthn oura toy Round Robin. kai ana TTI ginetai auto
+3h ERWTHSH: Ta processes prepei na trexoyn parallhla kai na einai 
+tosa wste na gemizoun mexri 110 RBs ana TTI. O Round Robin 8a exei 
+quantum iso me TTI kai 8a epilegei apo thn oura apo ta aristera pros ta deksia tosa processes wste na mhn gemisoun ta 110 RBs. 8a ta parei kai auta 8a treksoun parallhla kai otan teleiwsei to TTI 8a pane deksia sthn oura toy Round Robin. kai ana TTI ginetai auto

@@ -1,7 +1,16 @@
-Θεωρία Κιν Δίκτυα:
+Base station 110 resource blocks
+TTI: Transmision Time INterval ana 1 ms ginontai allocated ta RB analoga me ton scheduler pou exoume se ka8e UE
 
-1. Σταθμός βάσης, UE μοντελοποίηση
-2. Δείκτες ποιότητας
-3. Επίπεδα προτεραιότητας
-4. Ερώτημα 3
-5. Μοντελοποίηση τυχαίων συνθηκών καναλιού (ερώτημα 4)
+Practical Allocation of RBs:
+
+    In LTE, the minimum allocation is 1 RB per TTI, but in reality, many more RBs can be allocated to a single UE, especially when the user requires high data rates or when the network load is low.
+
+    For example, depending on the bandwidth of the LTE carrier (e.g., 10 MHz, 20 MHz), the total number of available RBs per TTI can range from 50 to 100 RBs, and a single user can be allocated several tens of RBs.
+    
+1h ERWTHSH: ston scheduler an o user equipment kane low band transmision na xrhsimopoiei 5 RBs per TTI, gia bursts 10 RBs per TTI, gia streaming 20 RBs per TTI
+
+2h ERWTHSH: Ana TTI exw allocated RBs
+Ara 110 RBs allocated ana TTI
+Ara ta processes 8a prepei na trexoyn parallhla mesa se ka8e TTI kai thn idia stigmh o ari8mos apo ta processes na mhn xrhsimopoioun parapanw apo 110 RBs pou einai ta sunolika.
+
+3h ERWTHSH: Ta processes prepei na trexoyn parallhla kai na einai tosa wste na gemizoun mexri 110 RBs ana TTI. O Round Robin 8a exei quantum iso me TTI kai 8a epilegei apo thn oura apo ta aristera pros ta deksia tosa processes wste na mhn gemisoun ta 110 RBs. 8a ta parei kai auta 8a treksoun parallhla kai otan teleiwsei to TTI 8a pane deksia sthn oura toy Round Robin. kai ana TTI ginetai auto

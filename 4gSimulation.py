@@ -34,12 +34,12 @@ class User(threading.Thread):
 
 class BaseStation:
     def __init__(self, num_users: int, total_rbs: int):
-        self.users: List[User] = [User(i+100, self.generate_traffic_type(), self.generate_channel_quality(), self.generate_priority_level()) for i in range(num_users)]
+        self.users: List[User] = [User(i, self.generate_traffic_type(), self.generate_channel_quality(), self.generate_priority_level()) for i in range(num_users)]
         self.total_rbs = total_rbs  # Finite number of resource blocks
         self.total_throughput = 0
         self.fairness_index = 0
         self.RBCapacity = 150  # Capacity of each RB in Kbps
-
+        self.queue = deque(self.users)
     def generate_traffic_type(self) -> str:
         """Randomly assign a traffic type to each user."""
         traffic_types = ["video_streaming", "web_browsing", "voice_call"]
@@ -59,12 +59,12 @@ class BaseStation:
 
     def round_robin_scheduler(self):
         """Distribute available resource blocks in a round-robin fashion."""
-       
+        
         available_rbs = self.calculate_available_resources()
-
-        for user in self.users:
-            user = self.users[0]
-            #user = user_queue.popleft()
+        count = 0 
+        for _ in range(len(self.queue)):
+            
+            user = self.queue.popleft()
             required_rbs = math.ceil(user.rac / self.RBCapacity)  # Determine how many RBs the user needs
             allocated_rbs = min(required_rbs, available_rbs)
             if allocated_rbs <= 0:
@@ -73,13 +73,21 @@ class BaseStation:
             user.allocated_rbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
             available_rbs -= allocated_rbs
+            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
+            
 
-            user.start()
+            count += allocated_rbs / 2 / 1000  # Sleep for TTI duration (1ms per 2 RBs)
+            print(f"User {user.id} has been allocated {allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
+            if user.rac > 0:
+                self.queue.append(user)  # Add the user back to the queue if there are still resources left
+                print(f"User {user.id} has finished its RA")
 
-            time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
-            #if available_rbs > 0:
-            #    user_queue.append(user)  # Add the user back to the queue if there are still resources left
-        
+        if not self.queue:
+            print("All users have finished their RA")
+            return True
+        print(f"Queue: {[user.id for user in self.queue]}")
+        time.sleep(count)
+
     def proportional_fair_scheduler(self):
         """Distribute available resource blocks based on proportional fairness."""
         users_sorted = sorted(self.users, key=lambda x: x.channel_quality / (x.throughput + 1e-9), reverse=True)
@@ -92,6 +100,7 @@ class BaseStation:
             allocated_rbs = min(required_rbs, available_rbs)
             user.allocated_rbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity
+            user.rac = max(0, user.rac - allocated_rbs * self.RBCapacity)
             available_rbs -= allocated_rbs
             time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
 
@@ -125,14 +134,16 @@ class BaseStation:
                 user.allocated_rbs = 0
 
             # Allocate resources using the scheduling algorithms
-            self.round_robin_scheduler()  # Allocate resources via Round-Robin
+            flag = self.round_robin_scheduler()  # Allocate resources via Round-Robin
+            if flag: break
             #self.proportional_fair_scheduler()  # Allocate resources via Proportional Fair
 
             # Collect performance metrics
             #self.calculate_performance_metrics()
 
 # Example usage
-num_users = 10
+num_users = 4
+
 total_rbs = 100  # Total number of Resource Blocks
 num_ttis = 1000  # Number of Transmission Time Intervals to simulate
 

@@ -15,7 +15,7 @@ class User(threading.Thread):
         self.throughput = 0
         self.rac = 0  # Resource allocation demand (RAC)
         self.allocated_rbs = 0
-
+        self.InitRac=0
     def generate_channel_quality(self):
         """Simulate variations in channel quality (e.g., fading) for each user."""
         self.channel_quality = max(0, self.channel_quality + np.random.normal(0, 2))
@@ -36,10 +36,9 @@ class BaseStation:
     def __init__(self, num_users: int, total_rbs: int):
         self.users: List[User] = [User(i, self.generate_traffic_type(), self.generate_channel_quality(), self.generate_priority_level()) for i in range(num_users)]
         self.total_rbs = total_rbs  # Finite number of resource blocks
-        self.total_throughput = 0
-        self.fairness_index = 0
         self.RBCapacity = 150  # Capacity of each RB in Kbps
         self.queue = deque(self.users)
+
     def generate_traffic_type(self) -> str:
         """Randomly assign a traffic type to each user."""
         traffic_types = ["video_streaming", "web_browsing", "voice_call"]
@@ -62,32 +61,45 @@ class BaseStation:
         
         available_rbs = self.calculate_available_resources()
         count = 0 
+        
         for _ in range(len(self.queue)):
             
             user = self.queue.popleft()
-            required_rbs = math.ceil(user.rac / self.RBCapacity)  # Determine how many RBs the user needs
-            allocated_rbs = min(required_rbs, available_rbs)
-            if allocated_rbs <= 0:
+            
+            if available_rbs <= 0:
+                print("OOSpace")
                 break
+            
+            user.allocated_rbs += 2
+            user.throughput += 2 * self.RBCapacity  # Update throughput based on allocated RBs
+            available_rbs -= 2
+            user.rac = max(0, math.ceil(user.rac - 2 * self.RBCapacity))
+            ''' Each processes takes the max of the RBs
+            
             
             user.allocated_rbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
             available_rbs -= allocated_rbs
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
             
+            '''
+            count += 1 / 1000  # Sleep for TTI duration (1ms per 2 RBs)
+            #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
 
-            count += allocated_rbs / 2 / 1000  # Sleep for TTI duration (1ms per 2 RBs)
-            print(f"User {user.id} has been allocated {allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
             if user.rac > 0:
                 self.queue.append(user)  # Add the user back to the queue if there are still resources left
-                print(f"User {user.id} has finished its RA")
+                #print(f"User {user.id} has finished this round")
+            else: 
+                print(f"User {user.id} requests has been satisfied")
 
-        if not self.queue:
-            print("All users have finished their RA")
-            return True
-        print(f"Queue: {[user.id for user in self.queue]}")
+        #print(f"Queue: {[user.id for user in self.queue]}")
         time.sleep(count)
 
+        if not self.queue:
+           # print("All users have finished their RA")
+            return True
+        
+        
     def proportional_fair_scheduler(self):
         """Distribute available resource blocks based on proportional fairness."""
         users_sorted = sorted(self.users, key=lambda x: x.channel_quality / (x.throughput + 1e-9), reverse=True)
@@ -109,11 +121,8 @@ class BaseStation:
         for user in self.users:
             user.generate_channel_quality()
             user.rac = user.generate_rac()
+            user.InitRac = user.rac
 
-    def calculate_performance_metrics(self):
-        """Calculate total throughput and fairness index at the end of each time step."""
-        self.total_throughput = sum(user.throughput for user in self.users)
-        self.fairness_index = self.calculate_fairness_index()
 
     def calculate_fairness_index(self):
         """Calculate the fairness index using Jain's fairness index formula."""
@@ -125,13 +134,15 @@ class BaseStation:
 
     def run_simulation(self, num_ttis: int):
         """Run the network simulation for a specified number of TTIs."""
+        self.update_user_properties()
+        for user in self.users:
+            user.allocated_rbs = 0
         for _ in range(num_ttis):
             # Update user properties (RAC, channel qualrandom.rarity)
-            self.update_user_properties()
+            
 
             # Reset allocated RBs for each TTI
-            for user in self.users:
-                user.allocated_rbs = 0
+            
 
             # Allocate resources using the scheduling algorithms
             flag = self.round_robin_scheduler()  # Allocate resources via Round-Robin
@@ -140,22 +151,28 @@ class BaseStation:
 
             # Collect performance metrics
             #self.calculate_performance_metrics()
+def calculate_performance_metrics(base_station):
+    """Calculate total throughput and fairness index at the end of each time step."""
+    total_throughput = sum(user.throughput for user in base_station.users)
+    fairness_index = base_station.calculate_fairness_index()
+    print(f"Total Throughput: {total_throughput:.2f} Kbps")
+    print(f"Fairness Index: {fairness_index:.4f}")
 
 # Example usage
-num_users = 4
+num_users = 120
 
-total_rbs = 100  # Total number of Resource Blocks
+total_rbs = 10  # Total number of Resource Blocks
 num_ttis = 1000  # Number of Transmission Time Intervals to simulate
 
 base_station = BaseStation(num_users=num_users, total_rbs=total_rbs)
 base_station.run_simulation(num_ttis=num_ttis)
 
 # Print the performance metrics
-print(f"Total Throughput: {base_station.total_throughput:.2f} Kbps")
-print(f"Fairness Index: {base_station.fairness_index:.4f}")
+calculate_performance_metrics(base_station)
 
 # Print individual user statistics
 for user in base_station.users:
     print(f"User {user.id} - Traffic Type: {user.traffic_type}, "
           f"Throughput: {user.throughput:.2f} Kbps, "
-          f"Allocated RBs: {user.allocated_rbs}")
+          f"Allocated RBs: {user.allocated_rbs}, "
+          f'With Initial RAC: {user.InitRac}')

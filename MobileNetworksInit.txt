@@ -16,3 +16,7 @@ Ara ta processes 8a prepei na trexoyn parallhla mesa se ka8e TTI kai thn idia st
 3h ERWTHSH: Ta processes prepei na trexoyn parallhla kai na einai 
 tosa wste na gemizoun mexri 110 RBs ana TTI. O Round Robin 8a exei 
 quantum iso me TTI kai 8a epilegei apo thn oura apo ta aristera pros ta deksia tosa processes wste na mhn gemisoun ta 110 RBs. 8a ta parei kai auta 8a treksoun parallhla kai otan teleiwsei to TTI 8a pane deksia sthn oura toy Round Robin. kai ana TTI ginetai auto
+
+4h Na orisoume thn pi8anothta tou kathe traffic type
+
+5h RB how to make the allocation

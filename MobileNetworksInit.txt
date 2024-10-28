@@ -1,5 +1,5 @@
 Base station 110 resource blocks
-TTI: Transmision Time INterval ana 1 ms ginontai allocated ta RB analoga me ton scheduler pou exoume se ka8e UE
+TTI: Transmision Time INterval ana 1 ms ginontai allocated ta RB analoga me ton scheduler pou exoume se ka8e base station
 
 Practical Allocation of RBs:
 
@@ -20,3 +20,7 @@ quantum iso me TTI kai 8a epilegei apo thn oura apo ta aristera pros ta deksia t
 4h Na orisoume thn pi8anothta tou kathe traffic type
 
 5h RB how to make the allocation
+
+Ερωτήσεις:
+1. Για τον proportional fair, χρειαζόμαστε το data rate(R/T), θα υπολογίζουμε το data rate ενός ιδανικού καναλιού ή να βασιστούμε σε κάποιο μαθηματικό τύπο;
+2. Πρέπει να ορίσουμε τα ελάχιστα Rbs, που θα δεσμεύονται ανά traffic type (π.χ. video-streaming = 20, voice-call = 2); 

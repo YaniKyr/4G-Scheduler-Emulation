@@ -43,7 +43,8 @@ class BaseStation:
     def generate_traffic_type(self) -> str:
         """Randomly assign a traffic type to each user."""
         traffic_types = ["video_streaming", "web_browsing", "voice_call"]
-        return np.random.choice(traffic_types)
+        probabilities = [0.75, 0.15, 0.10]  # 75% web browsing, 15% voice call, 10% video streaming
+        return np.random.choice(traffic_types, p=probabilities)
 
     def generate_channel_quality(self) -> float:
         """Randomly generate initial channel quality for users."""
@@ -82,18 +83,43 @@ class BaseStation:
         
     def proportional_fair_scheduler(self):
         """Distribute available resource blocks based on proportional fairness."""
-        users_sorted = sorted(self.users, key=lambda x: x.channel_quality / (x.throughput + 1e-9), reverse=True)
+        
+        # Calculate available resources
         available_rbs = self.calculate_available_resources()
+
+        # Update users' channel quality and RAC (if not done in run_simulation)
+        self.update_user_properties()
+
+        # Sort users based on the proportional fairness criterion
+        users_sorted = sorted(self.users, key=lambda x: (x.channel_quality / (x.throughput + 1e-9)), reverse=True)
 
         for user in users_sorted:
             if available_rbs <= 0:
                 break
-            required_rbs = math.ceil(user.rac / self.RBCapacity)
-            allocated_rbs = min(required_rbs, available_rbs)
-            user.allocated_rbs += allocated_rbs
-            user.throughput += allocated_rbs * self.RBCapacity
-            available_rbs -= allocated_rbs
-            time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
+                
+            # Calculate the instantaneous achievable rate based on allocated RBs
+            # Calculate required RBs based on RAC demand
+            required_rbs = math.ceil(user.rac / self.RBCapacity)  # Required RBs for current demand
+            allocated_rbs = min(required_rbs, available_rbs)  # Allocate only available RBs
+            
+            if allocated_rbs > 0:
+                # Update throughput
+                instantaneous_rate = allocated_rbs * self.RBCapacity  # Instantaneous rate for this allocation
+                user.throughput += instantaneous_rate  # Update the user throughput
+                user.allocated_rbs += allocated_rbs  # Update allocated RBs
+                
+                # Update average throughput using exponential moving average
+                user.average_throughput = (1 - 0.1) * getattr(user, 'average_throughput', 0) + 0.1 * instantaneous_rate
+                
+                # Decrease available RBs
+                available_rbs -= allocated_rbs
+                
+                # Simulate TTI duration
+                time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
+
+        # After resource allocation, calculate performance metrics if needed
+        self.calculate_performance_metrics()
+
 
     def update_user_properties(self):
         """Update each user's channel quality and RAC at each time step."""

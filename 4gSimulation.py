@@ -174,3 +174,6 @@ for user in base_station.users:
     print(f"User {user.id} - Traffic Type: {user.traffic_type}, "
           f"Throughput: {user.throughput:.2f} Kbps, "
           f"Allocated RBs: {user.allocated_rbs}")
+
+
+#test

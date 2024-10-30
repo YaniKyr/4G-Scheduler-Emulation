@@ -15,6 +15,7 @@ class User(threading.Thread):
         self.throughput = 0
         self.rac = 0  # Resource allocation demand (RAC)
         self.allocated_rbs = 0
+        self.target_rac = self.generate_rac()  # Initialize target RAC
         self.average_throughput = 0  # Initialize average throughput
 
     def generate_channel_quality(self):
@@ -33,6 +34,9 @@ class User(threading.Thread):
             case _:
                 raise ValueError(f"Invalid traffic type: {self.traffic_type}")
 
+    def is_satisfied(self):
+        """Check if the user's RAC has been fully satisfied."""
+        return self.allocated_rbs * self.RBCapacity >= self.target_rac
 
 class BaseStation:
     def __init__(self, num_users: int, total_rbs: int):
@@ -124,7 +128,11 @@ class BaseStation:
         """Update each user's channel quality and RAC at each time step."""
         for user in self.users:
             user.generate_channel_quality()
-            user.rac = user.generate_rac()
+            
+            # Only generate a new RAC if the user is not satisfied
+            if not user.is_satisfied():
+                user.rac = user.target_rac
+
 
     def calculate_performance_metrics(self):
         """Calculate total throughput and fairness index at the end of each time step."""
@@ -142,19 +150,20 @@ class BaseStation:
     def run_simulation(self, num_ttis: int):
         """Run the network simulation for a specified number of TTIs."""
         for _ in range(num_ttis):
-            # Update user properties (RAC, channel qualrandom.rarity)
+            # Update user properties (e.g., channel quality)
             self.update_user_properties()
 
             # Reset allocated RBs for each TTI
             for user in self.users:
-                user.allocated_rbs = 0
+                user.allocated_rbs = 0  # Reset allocated RBs for the next TTI
 
             # Allocate resources using the scheduling algorithms
             self.round_robin_scheduler()  # Allocate resources via Round-Robin
-            #self.proportional_fair_scheduler()  # Allocate resources via Proportional Fair
+            # self.proportional_fair_scheduler()  # Allocate resources via Proportional Fair
 
             # Collect performance metrics
-            #self.calculate_performance_metrics()
+            # self.calculate_performance_metrics()
+
 
 # Example usage
 num_users = 10

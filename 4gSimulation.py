@@ -15,6 +15,7 @@ class User(threading.Thread):
         self.throughput = 0
         self.rac = 0  # Resource allocation demand (RAC)
         self.allocated_rbs = 0
+        self.average_throughput = 0  # Initialize average throughput
 
     def generate_channel_quality(self):
         """Simulate variations in channel quality (e.g., fading) for each user."""
@@ -32,9 +33,10 @@ class User(threading.Thread):
             case _:
                 raise ValueError(f"Invalid traffic type: {self.traffic_type}")
 
+
 class BaseStation:
     def __init__(self, num_users: int, total_rbs: int):
-        self.users: List[User] = [User(i+100, self.generate_traffic_type(), self.generate_channel_quality(), self.generate_priority_level()) for i in range(num_users)]
+        self.users: List[User] = [User(i + 100, self.generate_traffic_type(), self.generate_channel_quality(), self.generate_priority_level()) for i in range(num_users)]
         self.total_rbs = total_rbs  # Finite number of resource blocks
         self.total_throughput = 0
         self.fairness_index = 0
@@ -87,9 +89,6 @@ class BaseStation:
         # Calculate available resources
         available_rbs = self.calculate_available_resources()
 
-        # Update users' channel quality and RAC (if not done in run_simulation)
-        self.update_user_properties()
-
         # Sort users based on the proportional fairness criterion
         users_sorted = sorted(self.users, key=lambda x: (x.channel_quality / (x.throughput + 1e-9)), reverse=True)
 
@@ -98,7 +97,6 @@ class BaseStation:
                 break
                 
             # Calculate the instantaneous achievable rate based on allocated RBs
-            # Calculate required RBs based on RAC demand
             required_rbs = math.ceil(user.rac / self.RBCapacity)  # Required RBs for current demand
             allocated_rbs = min(required_rbs, available_rbs)  # Allocate only available RBs
             
@@ -118,7 +116,8 @@ class BaseStation:
                 time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
 
         # After resource allocation, calculate performance metrics if needed
-        self.calculate_performance_metrics()
+    self.calculate_performance_metrics()
+
 
 
     def update_user_properties(self):

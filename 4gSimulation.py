@@ -68,6 +68,7 @@ class BaseStation:
     def reqRBsFormula(self,Cuser,queue):
         if Cuser.rac == 0:
             return 0
+        
         sum = 0
         for user in queue:
             #print(user.id)
@@ -94,8 +95,7 @@ class BaseStation:
             
             allocated_rbs = min(self.current_rbs, required_rbs)
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
-            if user.rac ==0:
-                break
+            
             print(f"User {user.id} requires {allocated_rbs} RBs")
             user.totalRbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
@@ -105,7 +105,7 @@ class BaseStation:
               # Sleep for TTI duration (1ms per 2 RBs)
 
             #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
-            if required_rbs> 0:   
+            if allocated_rbs> 0:   
                 self.queue.append(user)
         #print(f"Queue: {[user.id for user in self.queue]}")
         time.sleep(1/1000)

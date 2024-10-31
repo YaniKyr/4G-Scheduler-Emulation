@@ -26,7 +26,7 @@ class User(threading.Thread):
         """Generate the resource allocation demand based on traffic type."""
         match self.traffic_type:
             case "video_streaming":
-                return np.random.uniform(3000, 11000)  # High, constant bandwidth requirement
+                return np.random.uniform(8000, 11000)  # High, constant bandwidth requirement
             case "web_browsing":    
                 return np.random.exponential(1000) if np.random.rand() < 0.2 else 0  # Sporadic bursts
             case "voice_call":
@@ -93,25 +93,29 @@ class BaseStation:
         # Calculate available resources
         available_rbs = self.calculate_available_resources()
 
-        # Sort users based on the proportional fairness criterion
-        users_sorted = sorted(self.users, key=lambda x: (x.channel_quality / (x.throughput + 1e-9)), reverse=True)
+        # Sort users based on R/T, where R is the  and T is average throughput
+        users_sorted = sorted(
+            self.users, 
+            key=lambda user: (user.channel_quality * instantaneous_rate) / (user.average_throughput + 1e-9),
+            reverse=True
+        )
 
         for user in users_sorted:
             if available_rbs <= 0:
                 break
                 
-            # Calculate the instantaneous achievable rate based on allocated RBs
+            # Calculate the required and allocatable RBs
             required_rbs = math.ceil(user.rac / self.RBCapacity)  # Required RBs for current demand
             allocated_rbs = min(required_rbs, available_rbs)  # Allocate only available RBs
             
             if allocated_rbs > 0:
-                # Update throughput
+                # Calculate the instantaneous achievable rate
                 instantaneous_rate = allocated_rbs * self.RBCapacity  # Instantaneous rate for this allocation
                 user.throughput += instantaneous_rate  # Update the user throughput
                 user.allocated_rbs += allocated_rbs  # Update allocated RBs
                 
-                # Update average throughput using exponential moving average
-                user.average_throughput = (1 - 0.1) * getattr(user, 'average_throughput', 0) + 0.1 * instantaneous_rate
+                # Update average throughput with a smoothing factor (0.1)
+                user.average_throughput = (1 - 0.1) * user.average_throughput + 0.1 * instantaneous_rate
                 
                 # Decrease available RBs
                 available_rbs -= allocated_rbs
@@ -119,8 +123,9 @@ class BaseStation:
                 # Simulate TTI duration
                 time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
 
-        # After resource allocation, calculate performance metrics if needed
-    self.calculate_performance_metrics()
+        # Calculate performance metrics if needed
+        self.calculate_performance_metrics()
+
 
 
 
@@ -158,8 +163,8 @@ class BaseStation:
                 user.allocated_rbs = 0  # Reset allocated RBs for the next TTI
 
             # Allocate resources using the scheduling algorithms
-            self.round_robin_scheduler()  # Allocate resources via Round-Robin
-            # self.proportional_fair_scheduler()  # Allocate resources via Proportional Fair
+            #self.round_robin_scheduler()  # Allocate resources via Round-Robin
+            self.proportional_fair_scheduler()  # Allocate resources via Proportional Fair
 
             # Collect performance metrics
             # self.calculate_performance_metrics()

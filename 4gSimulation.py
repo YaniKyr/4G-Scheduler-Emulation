@@ -93,11 +93,14 @@ class BaseStation:
             required_rbs = self.reqRBsFormula(user,self.queue)
             
             allocated_rbs = min(self.current_rbs, required_rbs)
+            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
+            if user.rac ==0:
+                break
             print(f"User {user.id} requires {allocated_rbs} RBs")
             user.totalRbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
             self.current_rbs -= allocated_rbs
-            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
+            
             
               # Sleep for TTI duration (1ms per 2 RBs)
 

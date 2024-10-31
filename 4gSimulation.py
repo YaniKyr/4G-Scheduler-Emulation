@@ -14,9 +14,10 @@ class User(threading.Thread):
         self.priority_level = priority_level
         self.throughput = 0
         self.rac = 0  # Resource allocation demand (RAC)
-        self.allocated_rbs = self.minimumRBS(traffic_type)
         self.InitRac=0
         self.totalRbs = 0
+        self.raccc = 0
+        self.initRBS =0
     def generate_channel_quality(self):
         """Simulate variations in channel quality (e.g., fading) for each user."""
         self.channel_quality = max(0, self.channel_quality + np.random.normal(0, 2))
@@ -32,9 +33,9 @@ class User(threading.Thread):
                 return np.random.uniform(100, 200)  # Constant, low bandwidth requirement
             case _:
                 raise ValueError(f"Invalid traffic type: {self.traffic_type}")
-    def minimumRBS(self,traffic_type):
+    def minimumRBS(self):
 
-        match traffic_type:
+        match self.traffic_type:
             case "video_streaming":
                 return 20
             case "web_browsing":
@@ -72,11 +73,11 @@ class BaseStation:
         sum = 0
         for user in queue:
             #print(user.id)
-            sum +=user.allocated_rbs
+            sum +=user.minimumRBS()
             
-        allocation = math.ceil(1/(sum/self.current_rbs))
+        allocation = math.ceil(1/((sum+ 1e-10)/self.current_rbs))
         if allocation >=1:
-            return Cuser.allocated_rbs*allocation
+            return min(Cuser.totalRbs,  Cuser.minimumRBS()*allocation)
         else:
             print("Fond Else") 
        
@@ -91,13 +92,23 @@ class BaseStation:
                 print("OOSpace")
                 break
             user = self.queue.popleft()
+            
+            
             required_rbs = self.reqRBsFormula(user,self.queue)
             
             allocated_rbs = min(self.current_rbs, required_rbs)
+          
+            print(f"User 11111{user.id} requires {allocated_rbs} RBs")
+            user.totalRbs -= allocated_rbs 
+            
+            user.raccc +=allocated_rbs 
+            
+            
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
             
-            print(f"User {user.id} requires {allocated_rbs} RBs")
-            user.totalRbs += allocated_rbs
+            if allocated_rbs == 0:
+                break
+            
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
             self.current_rbs -= allocated_rbs
             
@@ -107,6 +118,7 @@ class BaseStation:
             #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
             if allocated_rbs> 0:   
                 self.queue.append(user)
+               
         #print(f"Queue: {[user.id for user in self.queue]}")
         time.sleep(1/1000)
 
@@ -121,6 +133,8 @@ class BaseStation:
             user.generate_channel_quality()
             user.rac = user.generate_rac()
             user.InitRac = user.rac
+            user.initRBS = user.totalRbs = math.ceil(user.rac/self.RBCapacity)
+            
 
 
     def calculate_fairness_index(self):
@@ -173,5 +187,5 @@ for user in base_station.users:
     print(f"User {user.id} - Traffic Type: {user.traffic_type}, "
           f"Throughput: {user.throughput:.2f} Kbps, "
           f"Allocated RBs: {user.totalRbs}, "
-          f'With Initial RAC: {user.InitRac}',
-          f'Leftover RAC: {user.rac}')
+          f'With Initial RAC: {user.initRBS}',
+          f'Leftover RAC: {user.raccc}')

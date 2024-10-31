@@ -66,7 +66,8 @@ class BaseStation:
         return self.total_rbs
 
     def reqRBsFormula(self,Cuser,queue):
-     
+        if Cuser.rac == 0:
+            return 0
         sum = 0
         for user in queue:
             #print(user.id)
@@ -74,52 +75,37 @@ class BaseStation:
             
         allocation = math.ceil(1/(sum/self.current_rbs))
         if allocation >=1:
-            print("Here")
             return Cuser.allocated_rbs*allocation
-        #leftovers
-        elif allocation <=1 and user.rac > 0:
-            return Cuser.rac / self.current_rbs
+        else:
+            print("Fond Else") 
        
     def round_robin_scheduler(self):
         """Distribute available resource blocks in a round-robin fashion."""
-        queue = deque()
-        available_rbs = self.current_rbs 
-        count = 0 
         
+        count = 0 
         for _ in range(len(self.queue)):
             
-            user = self.queue.popleft()
             
-            if available_rbs <= 1:
+            if self.current_rbs <= 1:
                 print("OOSpace")
                 break
+            user = self.queue.popleft()
             required_rbs = self.reqRBsFormula(user,self.queue)
-            print(f"User {user.id} requires {required_rbs} RBs")
-            allocated_rbs = min(available_rbs, required_rbs)
+            
+            allocated_rbs = min(self.current_rbs, required_rbs)
+            print(f"User {user.id} requires {allocated_rbs} RBs")
             user.totalRbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
-            available_rbs -= allocated_rbs
-            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
-            ''' Each processes takes the max of the RBs
-            
-            
-            user.allocated_rbs += allocated_rbs
-            user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
-            available_rbs -= allocated_rbs
+            self.current_rbs -= allocated_rbs
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
             
-            '''
-            count +=( allocated_rbs / 2000)  # Sleep for TTI duration (1ms per 2 RBs)
-            #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
+              # Sleep for TTI duration (1ms per 2 RBs)
 
-            if user.rac > 0:
-                queue.append(user)  # Add the user back to the queue if there are still resources left
-                #print(f"User {user.id} has finished this round")
-            else: 
-                print(f"User {user.id} requests has been satisfied")
-        self.queue = queue
+            #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
+            if required_rbs> 0:   
+                self.queue.append(user)
         #print(f"Queue: {[user.id for user in self.queue]}")
-        time.sleep(count)
+        time.sleep(1/1000)
 
         if not self.queue:
            # print("All users have finished their RA")
@@ -168,7 +154,7 @@ def calculate_performance_metrics(base_station):
     print(f"Fairness Index: {fairness_index:.4f}")
 
 # Example usage
-num_users = 20
+num_users = 10
 
 total_rbs = 100  # Total number of Resource Blocks
 num_ttis = 1000  # Number of Transmission Time Intervals to simulate
@@ -184,4 +170,5 @@ for user in base_station.users:
     print(f"User {user.id} - Traffic Type: {user.traffic_type}, "
           f"Throughput: {user.throughput:.2f} Kbps, "
           f"Allocated RBs: {user.totalRbs}, "
-          f'With Initial RAC: {user.InitRac}')
+          f'With Initial RAC: {user.InitRac}',
+          f'Leftover RAC: {user.rac}')

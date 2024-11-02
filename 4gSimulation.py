@@ -14,10 +14,10 @@ class User(threading.Thread):
         self.priority_level = priority_level
         self.throughput = 0
         self.rac = 0  # Resource allocation demand (RAC)
-        self.allocated_rbs = 0
         self.target_rac = self.generate_rac()  # Initialize target RAC
         self.average_throughput = 0  # Initialize average throughput
-
+        self.allocated_rbs = 0
+        self.total_rbs = 0
     def generate_channel_quality(self):
         """Simulate variations in channel quality (e.g., fading) for each user."""
         self.channel_quality = max(0, self.channel_quality + np.random.normal(0, 2))
@@ -45,6 +45,7 @@ class BaseStation:
         self.total_throughput = 0
         self.fairness_index = 0
         self.RBCapacity = 150  # Capacity of each RB in Kbps
+        self.user_queue = deque(self.users)
 
     def generate_traffic_type(self) -> str:
         """Randomly assign a traffic type to each user."""
@@ -64,28 +65,62 @@ class BaseStation:
         """Return the total number of available resource blocks."""
         return self.total_rbs
 
+    def reqRBsFormula(self,Cuser,queue):
+        if Cuser.rac == 0:
+            return 0
+        
+        sum = 0
+        for user in queue:
+            #print(user.id)
+            sum +=user.minimumRBS()
+            
+        allocation = math.ceil(1/((sum+ 1e-10)/self.current_rbs))
+        return min(Cuser.totalRbs,  Cuser.minimumRBS()*allocation)
+         
+       
     def round_robin_scheduler(self):
         """Distribute available resource blocks in a round-robin fashion."""
-       
-        available_rbs = self.calculate_available_resources()
-
-        for user in self.users:
-            user = self.users[0]
-            #user = user_queue.popleft()
-            required_rbs = math.ceil(user.rac / self.RBCapacity)  # Determine how many RBs the user needs
-            allocated_rbs = min(required_rbs, available_rbs)
-            if allocated_rbs <= 0:
+        
+        count = 0 
+        for _ in range(len(self.queue)):
+            
+            
+            if self.current_rbs <= 1:
+                print("OOSpace")
+                break
+            user = self.queue.popleft()
+            
+            
+            required_rbs = self.reqRBsFormula(user,self.queue)
+            
+            allocated_rbs = min(self.current_rbs, required_rbs)
+          
+            user.totalRbs -= allocated_rbs 
+            
+            user.rbs +=allocated_rbs 
+            
+            
+            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
+            
+            if allocated_rbs == 0:
                 break
             
-            user.allocated_rbs += allocated_rbs
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
-            available_rbs -= allocated_rbs
+            self.current_rbs -= allocated_rbs
+            
+            
+              # Sleep for TTI duration (1ms per 2 RBs)
 
-            user.start()
+            #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
+            if allocated_rbs> 0:   
+                self.queue.append(user)
+               
+        #print(f"Queue: {[user.id for user in self.queue]}")
+        time.sleep(1/1000)
 
-            time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
-            #if available_rbs > 0:
-            #    user_queue.append(user)  # Add the user back to the queue if there are still resources left
+        if not self.queue:
+           # print("All users have finished their RA")
+            return True
         
     def proportional_fair_scheduler(self):
         """Distribute available resource blocks based on proportional fairness."""

@@ -257,39 +257,39 @@ for user in base_station.users:
 
 #test
 
-def reqRBsFormula(self, Cuser, queue):
-        """Calculate the number of required RBs for a user, considering minimum demand and channel quality scaling."""
-        if Cuser.rac == 0:
-            return 0  # If no RAC is required, no RBs are needed.
+# def reqRBsFormula(self, Cuser, queue):
+#         """Calculate the number of required RBs for a user, considering minimum demand and channel quality scaling."""
+#         if Cuser.rac == 0:
+#             return 0  # If no RAC is required, no RBs are needed.
 
-        # Calculate the sum of minimum RBs needed for all users in the queue.
-        total_minimum_rbs = sum(user.minimumRBS() for user in queue)
+#         # Calculate the sum of minimum RBs needed for all users in the queue.
+#         total_minimum_rbs = sum(user.minimumRBS() for user in queue)
         
-        # Use a scaling factor for channel quality: users with better quality are favored.
-        quality_factor = max(0.1, Cuser.channel_quality)
+#         # Use a scaling factor for channel quality: users with better quality are favored.
+#         quality_factor = max(0.1, Cuser.channel_quality)
         
-        # Calculate the fair share of RBs based on the minimum requirement and channel quality.
-        allocation = math.ceil((self.current_rbs * Cuser.minimumRBS() * quality_factor) / (total_minimum_rbs + 1e-10))
+#         # Calculate the fair share of RBs based on the minimum requirement and channel quality.
+#         allocation = math.ceil((self.current_rbs * Cuser.minimumRBS() * quality_factor) / (total_minimum_rbs + 1e-10))
         
-        # Limit allocation to the user's total required RBs.
-        return min(allocation, Cuser.totalRbs)
+#         # Limit allocation to the user's total required RBs.
+#         return min(allocation, Cuser.totalRbs)
 
 
-#ΒΗΜΑ 2
-if self.current_rbs > 0:
-        total_demand = sum(user.dynamicDemand() for user in users_sorted)  # Calculate total dynamic demand
-        for user in users_sorted:
-            if self.current_rbs <= 0:
-                break
+# #ΒΗΜΑ 2
+# if self.current_rbs > 0:
+#         total_demand = sum(user.dynamicDemand() for user in users_sorted)  # Calculate total dynamic demand
+#         for user in users_sorted:
+#             if self.current_rbs <= 0:
+#                 break
             
-            # Determine the portion of RBs to allocate based on traffic type
-            portion = self.get_allocation_portion(user.traffic_type)  # This can be a predefined value
-            fair_allocation = portion * (user.dynamicDemand() / total_demand) if total_demand > 0 else 0
+#             # Determine the portion of RBs to allocate based on traffic type
+#             portion = self.get_allocation_portion(user.traffic_type)  # This can be a predefined value
+#             fair_allocation = portion * (user.dynamicDemand() / total_demand) if total_demand > 0 else 0
             
-            # Allocate fair allocation up to the remaining RBs
-            allocated_rbs = min(math.ceil(fair_allocation), self.current_rbs)
-            if allocated_rbs > 0:
-                user.allocated_rbs += allocated_rbs
-                user.totalRbs -= allocated_rbs
-                user.rac -= allocated_rbs * self.RBCapacity
-                self.current_rbs -= allocated_rbs
+#             # Allocate fair allocation up to the remaining RBs
+#             allocated_rbs = min(math.ceil(fair_allocation), self.current_rbs)
+#             if allocated_rbs > 0:
+#                 user.allocated_rbs += allocated_rbs
+#                 user.totalRbs -= allocated_rbs
+#                 user.rac -= allocated_rbs * self.RBCapacity
+#                 self.current_rbs -= allocated_rbs

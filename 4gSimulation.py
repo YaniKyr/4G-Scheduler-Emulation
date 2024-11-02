@@ -34,9 +34,15 @@ class User(threading.Thread):
             case _:
                 raise ValueError(f"Invalid traffic type: {self.traffic_type}")
 
-    def is_satisfied(self):
-        """Check if the user's RAC has been fully satisfied."""
-        return self.allocated_rbs * self.RBCapacity >= self.target_rac
+    def minimumRBS(self):
+
+        match self.traffic_type:
+            case "video_streaming":
+                return 20
+            case "web_browsing":
+                return 5
+            case "voice_call":
+                return 2
 
 class BaseStation:
     def __init__(self, num_users: int, total_rbs: int):
@@ -95,9 +101,9 @@ class BaseStation:
             
             allocated_rbs = min(self.current_rbs, required_rbs)
           
-            user.totalRbs -= allocated_rbs 
+            user.total_rbs -= allocated_rbs 
             
-            user.rbs +=allocated_rbs 
+            user.allocated_rbs +=allocated_rbs 
             
             
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
@@ -123,55 +129,78 @@ class BaseStation:
             return True
         
     def proportional_fair_scheduler(self):
-        """Distribute available resource blocks based on proportional fairness."""
-        
-        # Calculate available resources
-        available_rbs = self.calculate_available_resources()
+        """Distribute available resource blocks based on proportional fairness`."""
 
-        # Sort users based on R/T, where R is the  and T is average throughput
+        # Calculate available resources
+        self.current_rbs = self.calculate_available_resources()
+
+        # Sort users based on R/T, where R is the achievable rate and T is average throughput
+        instantaneous_rate = 1  # Define this based on your logic
         users_sorted = sorted(
-            self.users, 
-            key=lambda user: (user.channel_quality * instantaneous_rate) / (user.average_throughput + 1e-9),
+            self.users,
+            key=lambda user: (instantaneous_rate) / (user.average_throughput + 1e-9),
             reverse=True
         )
 
-        for user in users_sorted:
-            if available_rbs <= 0:
-                break
-                
-            # Calculate the required and allocatable RBs
-            required_rbs = math.ceil(user.rac / self.RBCapacity)  # Required RBs for current demand
-            allocated_rbs = min(required_rbs, available_rbs)  # Allocate only available RBs
+        user_queue = deque(users_sorted)
+
+        while user_queue and self.current_rbs > 0:
+            # Pop the user from the left of the queue
+            user = user_queue.popleft()
+
+            # Calculate required and allocated RBs
+            required_rbs = self.reqRBsFormula(user,self.queue)
+            allocated_rbs = min(required_rbs, self.current_rbs)
+
             
+
+            # Decrease available RBs
+            self.current_rbs -= allocated_rbs
+
+            # Update remaining RAC for the user after allocation
+            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
+
             if allocated_rbs > 0:
                 # Calculate the instantaneous achievable rate
-                instantaneous_rate = allocated_rbs * self.RBCapacity  # Instantaneous rate for this allocation
-                user.throughput += instantaneous_rate  # Update the user throughput
-                user.allocated_rbs += allocated_rbs  # Update allocated RBs
-                
-                # Update average throughput with a smoothing factor (0.1)
-                user.average_throughput = (1 - 0.1) * user.average_throughput + 0.1 * instantaneous_rate
-                
-                # Decrease available RBs
-                available_rbs -= allocated_rbs
-                
-                # Simulate TTI duration
-                time.sleep(allocated_rbs / 2 / 1000)  # Sleep for TTI duration (1ms per 2 RBs)
+                instantaneous_rate = allocated_rbs * self.RBCapacity * user.channel_quality
+                user.throughput += instantaneous_rate
+                user.totalRbs -= allocated_rbs
+                user.allocated_rbs += allocated_rbs
 
-        # Calculate performance metrics if needed
+                # Update average throughput with a smoothing factor (0.1)
+                smoothing_factor = 0.1
+                user.average_throughput = (1 - smoothing_factor) * user.average_throughput + smoothing_factor * instantaneous_rate
+
+            # If RAC is not fully satisfied and we still have resources, re-queue the user
+            if user.rac > 0 and self.current_rbs > 0:
+                user_queue.append(user)
+
+            # Check if available RBs are nearly exhausted and print "OOSpace" if so
+            if self.current_rbs <= 1:
+                print("OOSpace")
+                break
+
+            # Simulate TTI duration
+            time.sleep(allocated_rbs / 2 / 1000)  # Example: 1ms per 2 RBs
+
+        # After resource allocation, calculate performance metrics if needed
         self.calculate_performance_metrics()
 
 
 
 
     def update_user_properties(self):
-        """Update each user's channel quality and RAC at each time step."""
+        """Update each user's channel quality each time step."""
         for user in self.users:
             user.generate_channel_quality()
             
-            # Only generate a new RAC if the user is not satisfied
-            if not user.is_satisfied():
-                user.rac = user.target_rac
+    def init_user_properties(self):
+        """Initialize each user's values."""
+        for user in self.users:
+            user.generate_channel_quality()
+            user.rac = user.generate_rac()
+            user.InitRac = user.rac
+            user.totalRbs = math.ceil(user.rac/self.RBCapacity)
 
 
     def calculate_performance_metrics(self):
@@ -189,6 +218,8 @@ class BaseStation:
 
     def run_simulation(self, num_ttis: int):
         """Run the network simulation for a specified number of TTIs."""
+        self.init_user_properties()
+
         for _ in range(num_ttis):
             # Update user properties (e.g., channel quality)
             self.update_user_properties()
@@ -225,3 +256,40 @@ for user in base_station.users:
 
 
 #test
+
+def reqRBsFormula(self, Cuser, queue):
+        """Calculate the number of required RBs for a user, considering minimum demand and channel quality scaling."""
+        if Cuser.rac == 0:
+            return 0  # If no RAC is required, no RBs are needed.
+
+        # Calculate the sum of minimum RBs needed for all users in the queue.
+        total_minimum_rbs = sum(user.minimumRBS() for user in queue)
+        
+        # Use a scaling factor for channel quality: users with better quality are favored.
+        quality_factor = max(0.1, Cuser.channel_quality)
+        
+        # Calculate the fair share of RBs based on the minimum requirement and channel quality.
+        allocation = math.ceil((self.current_rbs * Cuser.minimumRBS() * quality_factor) / (total_minimum_rbs + 1e-10))
+        
+        # Limit allocation to the user's total required RBs.
+        return min(allocation, Cuser.totalRbs)
+
+
+#ΒΗΜΑ 2
+if self.current_rbs > 0:
+        total_demand = sum(user.dynamicDemand() for user in users_sorted)  # Calculate total dynamic demand
+        for user in users_sorted:
+            if self.current_rbs <= 0:
+                break
+            
+            # Determine the portion of RBs to allocate based on traffic type
+            portion = self.get_allocation_portion(user.traffic_type)  # This can be a predefined value
+            fair_allocation = portion * (user.dynamicDemand() / total_demand) if total_demand > 0 else 0
+            
+            # Allocate fair allocation up to the remaining RBs
+            allocated_rbs = min(math.ceil(fair_allocation), self.current_rbs)
+            if allocated_rbs > 0:
+                user.allocated_rbs += allocated_rbs
+                user.totalRbs -= allocated_rbs
+                user.rac -= allocated_rbs * self.RBCapacity
+                self.current_rbs -= allocated_rbs

@@ -16,8 +16,7 @@ class User(threading.Thread):
         self.rac = 0  # Resource allocation demand (RAC)
         self.InitRac=0
         self.totalRbs = 0
-        self.raccc = 0
-        self.initRBS =0
+        self.rbs =0
     def generate_channel_quality(self):
         """Simulate variations in channel quality (e.g., fading) for each user."""
         self.channel_quality = max(0, self.channel_quality + np.random.normal(0, 2))
@@ -76,10 +75,8 @@ class BaseStation:
             sum +=user.minimumRBS()
             
         allocation = math.ceil(1/((sum+ 1e-10)/self.current_rbs))
-        if allocation >=1:
-            return min(Cuser.totalRbs,  Cuser.minimumRBS()*allocation)
-        else:
-            print("Fond Else") 
+        return min(Cuser.totalRbs,  Cuser.minimumRBS()*allocation)
+         
        
     def round_robin_scheduler(self):
         """Distribute available resource blocks in a round-robin fashion."""
@@ -98,10 +95,9 @@ class BaseStation:
             
             allocated_rbs = min(self.current_rbs, required_rbs)
           
-            print(f"User 11111{user.id} requires {allocated_rbs} RBs")
             user.totalRbs -= allocated_rbs 
             
-            user.raccc +=allocated_rbs 
+            user.rbs +=allocated_rbs 
             
             
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
@@ -133,7 +129,7 @@ class BaseStation:
             user.generate_channel_quality()
             user.rac = user.generate_rac()
             user.InitRac = user.rac
-            user.initRBS = user.totalRbs = math.ceil(user.rac/self.RBCapacity)
+            user.totalRbs = math.ceil(user.rac/self.RBCapacity)
             
 
 
@@ -186,6 +182,5 @@ calculate_performance_metrics(base_station)
 for user in base_station.users:
     print(f"User {user.id} - Traffic Type: {user.traffic_type}, "
           f"Throughput: {user.throughput:.2f} Kbps, "
-          f"Allocated RBs: {user.totalRbs}, "
-          f'With Initial RAC: {user.initRBS}',
-          f'Leftover RAC: {user.raccc}')
+          f"Allocated RBs: {user.rbs}, "
+          f'With Leftover rbs: {user.totalRbs}')

@@ -3,9 +3,8 @@ from collections import deque
 from typing import List
 import math
 import time
-import threading
 
-class User(threading.Thread):
+class User():
     def __init__(self, id: int, traffic_type: str, channel_quality: float, priority_level: int):
         super().__init__()
         self.id = id
@@ -90,7 +89,7 @@ class BaseStation:
             sum +=user.minimumRBS()
             
         allocation = math.ceil(1/((sum+ 1e-10)/self.current_rbs))
-        return min(Cuser.totalRbs,  max(Cuser.minimumRBS(), Cuser.minimumRBS()*allocation))
+        return min(Cuser.totalRbs,  Cuser.minimumRBS()*allocation)
          
        
     def round_robin_scheduler(self):
@@ -108,8 +107,7 @@ class BaseStation:
             required_rbs = self.reqRBsFormula(user,self.queue)
             
             allocated_rbs = min(self.current_rbs, required_rbs)
-            if allocated_rbs == 0:
-                break
+            
             user.total_rbs -= allocated_rbs 
             
             user.allocated_rbs +=allocated_rbs 
@@ -117,7 +115,8 @@ class BaseStation:
             
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
             
-            
+            if allocated_rbs == 0:
+                break
             
             user.throughput += allocated_rbs * self.RBCapacity  # Update throughput based on allocated RBs
             self.current_rbs -= allocated_rbs
@@ -210,7 +209,7 @@ class BaseStation:
             user.rac = user.generate_rac()
             user.InitRac = user.rac
             user.totalRbs = math.ceil(user.rac/self.RBCapacity)
-
+            print('User:',user.id,'RAC:',user.rac,'Total Rbs:',user.totalRbs)
 
     def calculate_performance_metrics(self):
         """Calculate total throughput and fairness index at the end of each time step."""
@@ -228,6 +227,7 @@ class BaseStation:
     def run_simulation(self, num_ttis: int):
         """Run the network simulation for a specified number of TTIs."""
         self.init_user_properties()
+        self.update_user_properties()
         count =0
         for _ in range(num_ttis):
             self.current_rbs = self.total_rbs
@@ -238,31 +238,7 @@ class BaseStation:
         print("Total TTIs: ",count)
         self.calculate_performance_metrics()
         PrintResults()
-        self.update_user_properties()
-        count=0
-
-        for _ in range(num_ttis):
-            self.current_rbs = self.total_rbs
-            # Update user properties (e.g., channel quality)
-            for user in self.users:
-                user.generate_channel_quality()
-            # Reset allocated RBs for each TTI
-            # Reset allocated RBs for the next TTI
-
-            # Allocate resources using the scheduling algorithms
-            #self.round_robin_scheduler()  # Allocate resources via Round-Robin
-            if self.proportional_fair_scheduler():
-                break  # Allocate resources via Proportional Fair
-            #self.round_robin_scheduler()
-            # Collect performance metrics
-            # self.calculate_performance_metrics()
-            count +=1
-            
-        self.calculate_performance_metrics()
-        
-        print('Proportional Fair \n')
-        print("Total TTIs: ",count)
-        PrintResults()
+      
 
 def PrintResults():
     print(f"Total Throughput: {base_station.total_throughput:.2f} Kbps")

@@ -87,7 +87,7 @@ class BaseStation:
             sum +=user.minimumRBS()
             
         allocation = math.ceil(1/((sum+ 1e-10)/self.current_rbs))
-        return min(Cuser.totalRbs,  Cuser.minimumRBS()*allocation)
+        return min(Cuser.totalRbs,  max(Cuser.minimumRBS() ,Cuser.minimumRBS()*allocation))
          
        
     def round_robin_scheduler(self):

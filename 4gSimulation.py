@@ -4,6 +4,7 @@ from typing import List
 import math
 import time
 from tabulate import tabulate
+import matplotlib.pyplot as plt
 class User():
     def __init__(self, id: int, traffic_type: str, priority_level: int):
         
@@ -204,7 +205,7 @@ class BaseStation:
             user.rac = user.generate_rac()
             user.InitRac = user.rac
             user.totalRbs = math.ceil(user.rac/self.RBCapacity)
-            print('User:',user.id,'RAC:',user.rac,'Total Rbs:',user.totalRbs)
+            #print('User:',user.id,'RAC:',user.rac,'Total Rbs:',user.totalRbs)
 
 
     def calculate_fairness_index(self):
@@ -227,10 +228,11 @@ class BaseStation:
         print(tabulate(data, headers=headers, tablefmt="grid"))
 
 
-    def run_simulation(self, num_ttis: int):
+    def run_simulation(self, num_ttis: int, verbose: bool = False):
         """Run the network simulation for a specified number of TTIs."""
         self.init_user_properties()
         count=0
+
         for _ in range(num_ttis):
            
             self.current_rbs = self.total_rbs
@@ -238,10 +240,14 @@ class BaseStation:
             
             if self.round_robin_scheduler():
                 break
-        print('\nRound Robin')
-        print("Total TTIs: ",count)
         self.calculate_performance_metrics()
-        self.print_results() 
+        if not verbose:
+            print('\nRound Robin')
+            print("Total TTIs: ",count)
+            
+            self.print_results() 
+        rr_throughput = self.fairness_index
+
         count=0
         self.update_user_properties()
         for _ in range(num_ttis):
@@ -251,16 +257,34 @@ class BaseStation:
             count+=1
             if self.proportional_fair_scheduler():
                 break
-        print('\nPropotional Fair')
-        print("Total TTIs: ",count)
         self.calculate_performance_metrics()
-        
-        self.print_results()
+        if not verbose:
+            print('\nPropotional Fair')
+            print("Total TTIs: ",count)
+            
+            
+            self.print_results()
+        return rr_throughput, self.fairness_index
 
 # Example usage
 num_users = 10
 total_rbs = 100  # Total number of Resource Blocks
 num_ttis = 100  # Number of Transmission Time Intervals to simulate
+rr_throughput = []
+pf_throughput = []
+index = []
+for i in range(1,10):
+    base_station = BaseStation(num_users=num_users, total_rbs=total_rbs)
+    rr,pr =base_station.run_simulation(num_ttis=num_ttis, verbose= True)
+    print(rr)
+    rr_throughput.append(rr)
+    index.append(i)
+    pf_throughput.append(pr)
+    num_users = num_users* i
 
-base_station = BaseStation(num_users=num_users, total_rbs=total_rbs)
-base_station.run_simulation(num_ttis=num_ttis)
+plt.plot(index, rr_throughput, label='Round Robin')
+plt.xlabel('Simulation Run')
+plt.ylabel('Fairness Index')
+plt.title('Fairness Index Comparison')
+plt.legend()
+plt.show()

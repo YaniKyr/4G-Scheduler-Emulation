@@ -94,111 +94,90 @@ class BaseStation:
        
     def round_robin_scheduler(self):
         """Distribute available resource blocks in a round-robin fashion."""
-        
-        count = 0 
         for _ in range(len(self.queue)):
-            
-            
             if self.current_rbs <= 1:
-                #print("OOSpace")
                 break
             user = self.queue.popleft()
-            
+
+            # Delay control
+            if user.current_delay > 0:
+                user.current_delay -= 1
+                print(f"User {user.id} is delayed by 1 TTI. Remaining Delay: {user.current_delay}")
+                self.queue.append(user)
+                continue
+
+            required_rbs = self.reqRBsFormula(user, self.queue)
+
+            if required_rbs == 0 or self.current_rbs <= 0:
+                # User is not serviced this TTI
+                if user.current_delay == 0 and not (user.traffic_type == "web_browsing" and user.rac == 0):
+                    user.queue_delay += 1
+                    print(f"User {user.id} is delayed by 1 TTI (Queue Delay Incremented). Total Queue Delay: {user.queue_delay}")
+                self.queue.append(user)
+                continue
+
+            allocated_rbs = min(self.current_rbs, required_rbs)
+            user.allocated_rbs += allocated_rbs
+            user.totalRbs -= allocated_rbs
+            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
+            user.throughput += allocated_rbs * self.RBCapacity * user.generate_channel_quality()
+            self.current_rbs -= allocated_rbs
+
+            print(f"User {user.id} is serviced. Allocated {allocated_rbs} RBs. Remaining RAC: {user.rac}")
+            if user.rac > 0:
+                self.queue.append(user)
+
+        time.sleep(1 / 2000)  # Simulate TTI duration
+
+        return not self.queue
+
+ 
+    def proportional_fair_scheduler(self):
+        """Distribute available resource blocks based on proportional fairness."""
+        self.current_rbs = self.calculate_available_resources()
+        self.queue = deque(self.pfPriority())
+
+        for _ in range(len(self.queue)):
+            if self.current_rbs <= 0:
+                break
+            user = self.queue.popleft()
+
             if user.current_delay > 0:
                 user.current_delay -= 1
                 self.queue.append(user)
                 continue
-            
-            required_rbs = self.reqRBsFormula(user,self.queue)
-            
+
+            required_rbs = self.reqRBsFormula(user, self.queue)
+
             if required_rbs == 0 or self.current_rbs <= 0:
                 # User is not serviced this TTI
-                # Increment queue_delay only for non-web_browsing users or when RAC > 0
                 if user.current_delay == 0 and not (user.traffic_type == "web_browsing" and user.rac == 0):
                     user.queue_delay += 1
                 self.queue.append(user)
                 continue
 
-
-            
-            
-            allocated_rbs = min(self.current_rbs, required_rbs)
-            user.allocated_rbs += allocated_rbs
-            user.totalRbs -= allocated_rbs             
-            
-            user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
-            user.throughput += allocated_rbs * self.RBCapacity * user.generate_channel_quality() # Update throughput based on allocated RBs
-            self.current_rbs -= allocated_rbs
-              # Sleep for TTI duration (1ms per 2 RBs)
-
-            #print(f"User {user.id} has been allocated {user.allocated_rbs} RBs, Remaining RAC: {user.rac}, with required RBs: {required_rbs}, and totalRbs: {available_rbs}")
-            if user.rac> 0:   
-                self.queue.append(user)
-
-        #print(f"Queue: {[user.id for user in self.queue]}")
-        time.sleep(1/2000)
-
-        if not self.queue:
-           # print("All users have finished their RA")
-            return True
- 
-    def proportional_fair_scheduler(self):
-        """Distribute available resource blocks based on proportional fairness`."""
-
-        # Calculate available resources
-        self.current_rbs = self.calculate_available_resources()
-
-        # Sort users based on R/T, where R is the achievable rate and T is average throughput
-        # Define this based on your logic
-        
-        self.queue = deque(self.pfPriority())
-        
-
-        for  _ in range(len(self.queue)) :
-            if self.current_rbs <= 0:
-                break
-            # Pop the user from the left of the queue
-            
-            user = self.queue.popleft()
-            if user.current_delay > 0:
-                user.current_delay -= 1
-                self.queue.append(user)
-                continue
-            # Calculate required and allocated RBs
-            required_rbs = self.reqRBsFormula(user,self.queue)
             allocated_rbs = min(required_rbs, self.current_rbs)
-
-            # Decrease available RBs
             self.current_rbs -= allocated_rbs
-
-            # Update remaining RAC for the user after allocation
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
 
             if allocated_rbs > 0:
-                # Calculate the instantaneous achievable rate
                 user.instantaneous_rate = allocated_rbs * self.RBCapacity * user.generate_channel_quality()
                 user.throughput += user.instantaneous_rate
                 user.totalRbs -= allocated_rbs
                 user.allocated_rbs += allocated_rbs
 
-                # Update average throughput with a smoothing factor (0.1)
                 smoothing_factor = 1
                 user.average_throughput = (1 - smoothing_factor) * user.average_throughput + smoothing_factor * user.instantaneous_rate
 
-            # If RAC is not fully satisfied and we still have resources, re-queue the user
-            if user.rac > 0 :
+            if user.rac > 0:
                 self.queue.append(user)
 
-            # Check if available RBs are nearly exhausted and print "OOSpace" if so
             if self.current_rbs <= 1:
-                #print("OOSpace")
                 break
-            
-            # Simulate TTI duration
-            time.sleep(1 / 2000)  # Example: 1ms per 2 RBs
-        if not self.queue:
-            return True
-        # After resource allocation, calculate performance metrics if needed
+
+            time.sleep(1 / 2000)  # Simulate TTI duration
+
+        return not self.queue
 
     def update_user_properties(self):
         """Update each user's channel quality each time step."""
@@ -242,58 +221,74 @@ class BaseStation:
     def run_simulation(self, num_ttis: int, verbose: bool = False):
         """Run the network simulation for a specified number of TTIs."""
         self.init_user_properties()
-        count=0
+        rr_total_delay = 0
+        pf_total_delay = 0
 
-        for _ in range(num_ttis):
-           
+        # Round Robin Scheduling
+        print("\n--- Round Robin Scheduling ---")
+        count = 0
+        for tti in range(num_ttis):
             self.current_rbs = self.total_rbs
-            count+=1
-            
+            count += 1
+            print(f"\nTTI {tti + 1}:")
+            for user in self.users:
+                print(f"User {user.id}: Queue Delay: {user.queue_delay} TTIs")
+
             if self.round_robin_scheduler():
                 break
         self.calculate_performance_metrics()
-        if not verbose:
-            print('\nRound Robin')
-            print("Total TTIs: ",count)
-            
-            self.print_results() 
+
+        # Calculate total delay for RR
+        rr_total_delay = sum(user.queue_delay for user in self.users)
+        print(f"\nTotal TTIs (Round Robin): {count}")
+        print(f"Total Queue Delay (Round Robin): {rr_total_delay} TTIs")
+        self.print_results()
         rr_throughput = self.fairness_index
 
-
-
-        count=0
+        # Reset user properties for Proportional Fair Scheduling
         self.update_user_properties()
-        for _ in range(num_ttis):
-            
+        print("\n--- Proportional Fair Scheduling ---")
+        count = 0
+        for tti in range(num_ttis):
             self.current_rbs = self.total_rbs
-            
-            count+=1
+            count += 1
+            print(f"\nTTI {tti + 1}:")
+            for user in self.users:
+                print(f"User {user.id}: Queue Delay: {user.queue_delay} TTIs")
+
             if self.proportional_fair_scheduler():
                 break
         self.calculate_performance_metrics()
-        if not verbose:
-            print('\nPropotional Fair')
-            print("Total TTIs: ",count)
-            
-            
-            self.print_results()
+
+        # Calculate total delay for PF
+        pf_total_delay = sum(user.queue_delay for user in self.users)
+        print(f"\nTotal TTIs (Proportional Fair): {count}")
+        print(f"Total Queue Delay (Proportional Fair): {pf_total_delay} TTIs")
+        self.print_results()
+
+        # Display comparison of delays
+        print("\n--- Delay Comparison ---")
+        print(f"Total Delay (Round Robin): {rr_total_delay} TTIs")
+        print(f"Total Delay (Proportional Fair): {pf_total_delay} TTIs")
+
         return rr_throughput, self.fairness_index
+
 
 # Example usage
 num_users = 10
-total_rbs = 100  # Total number of Resource Blocks
-num_ttis = 10000  # Number of Transmission Time Intervals to simulate
+total_rbs = 50  # Total number of Resource Blocks
+num_ttis = 5000  # Number of Transmission Time Intervals to simulate
 rr_throughput = []
 pf_throughput = []
 index = []
-for i in range(1,100):
+for i in range(1,10):
     base_station = BaseStation(num_users=num_users, total_rbs=total_rbs)
     rr,pr =base_station.run_simulation(num_ttis=num_ttis, verbose= True)
     print(rr)
     rr_throughput.append(rr)
     index.append(i)
     pf_throughput.append(pr)
-    num_users = 10* i
+    num_users = 5* i
 
 plt.scatter(index, rr_throughput, label='Round Robin Throughput', color='blue')
 plt.scatter(index, pf_throughput, label='Proportional Fair Throughput', color='red')

@@ -33,9 +33,15 @@ class BaseStation:
         return self.total_rbs
 
     def pfPriority(self):
-        return  sorted(
+        return sorted(
             self.queue,
-            key=lambda user: (user.throughput) / ((user.average_throughput ** self.a) + 1e-9),
+            key=lambda user: (
+                # Instantaneous rate (channel quality)
+                user.generate_channel_quality() 
+                / 
+                # Average throughput raised to power α (default 1)
+                ((user.average_throughput + 1e-9) ** self.a)
+            ),
             reverse=True
         )
 
@@ -100,9 +106,9 @@ class BaseStation:
         """Distribute available resource blocks based on proportional fairness."""
         self.current_rbs = self.calculate_available_resources()
         self.queue = deque(self.pfPriority())
-        user = self.queue.popleft()
 
         for _ in range(len(self.queue)):
+            user = self.queue.popleft()
             if self.current_rbs <=1:
                 user.queue_delay += 1
                 self.queue.append(user)
@@ -131,7 +137,7 @@ class BaseStation:
             user.allocated_rbs += allocated_rbs
 
 
-            smoothing_factor = 0.5
+            smoothing_factor = 0.1
             user.average_throughput = (1 - smoothing_factor) * user.average_throughput + smoothing_factor * user.throughput
 
             if user.rac > 0:

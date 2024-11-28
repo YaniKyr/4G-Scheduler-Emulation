@@ -13,7 +13,7 @@ class BaseStation:
         self.total_rbs =self.current_rbs= total_rbs  # Finite number of resource blocks
         self.total_throughput = 0
         self.fairness_index = 0
-        self.a = 2
+        self.a = 1
         self.RBCapacity = 150  # Capacity of each RB in Kbps
         self.queue = deque(self.users)
 
@@ -132,7 +132,7 @@ class BaseStation:
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
 
             user.throughput += (allocated_rbs * self.RBCapacity * user.generate_channel_quality())
-            user.throughput = min(user.throughput, user.InitRac)
+            
             user.totalRbs -= allocated_rbs
             user.allocated_rbs += allocated_rbs
 

@@ -77,7 +77,7 @@ if __name__ == "__main__":
     rr_fairidx = []
     pf_fairidx = []
     index = []
-    for i in range(1,100):
+    for i in range(1,30):
         base_station = Bs.BaseStation(num_users=num_users, total_rbs=total_rbs)
         rr_fairness_index,pf_fairness_index, rrth,prth =run_simulation(base_station,num_ttis=num_ttis, verbose= True)
         

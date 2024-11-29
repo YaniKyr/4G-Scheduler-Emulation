@@ -1,9 +1,8 @@
 import numpy as np
 from collections import deque
 from typing import List
-import math
 import time
-
+import math
 import user as User
 
 class BaseStation:
@@ -13,10 +12,10 @@ class BaseStation:
         self.total_rbs =self.current_rbs= total_rbs  # Finite number of resource blocks
         self.total_throughput = 0
         self.fairness_index = 0
-        self.a = 1
+        self.a = 5
         self.RBCapacity = 150  # Capacity of each RB in Kbps
         self.queue = deque(self.users)
-
+        self.N_PF = 1 * self.RBCapacity/0.01
     def generate_traffic_type(self) -> str:
         """Randomly assign a traffic type to each user."""
         traffic_types = ["video_streaming", "web_browsing", "voice_call"]
@@ -72,7 +71,7 @@ class BaseStation:
                 self.queue.append(user)
                 continue
 
-            required_rbs = self.reqRBsFormula(user, self.queue)
+            required_rbs = math.ceil(user.rac/self.RBCapacity)
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
                 # User is not serviced this TTI
@@ -119,7 +118,7 @@ class BaseStation:
                 self.queue.append(user)
                 continue
 
-            required_rbs = self.reqRBsFormula(user, self.queue)
+            required_rbs = math.ceil(user.rac/self.RBCapacity)
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
                 # User is not serviced this TTI
@@ -132,13 +131,13 @@ class BaseStation:
             user.rac = max(0, math.ceil(user.rac - allocated_rbs * self.RBCapacity))
 
             user.throughput += (allocated_rbs * self.RBCapacity * user.generate_channel_quality())
-            
+            user.throughput = min(user.throughput, user.InitRac)
             user.totalRbs -= allocated_rbs
             user.allocated_rbs += allocated_rbs
 
 
-            smoothing_factor = 0.1
-            user.average_throughput = (1 - smoothing_factor) * user.average_throughput + smoothing_factor * user.throughput
+            smoothing_factor = 0.5
+            user.average_throughput = (1 - 1/self.N_PF) * user.average_throughput + (1/self.N_PF) * user.throughput
 
             if user.rac > 0:
                 self.queue.append(user)
@@ -158,7 +157,7 @@ class BaseStation:
             user.allocated_rbs = 0
             user.throughput = 0
             self.queue = deque(self.users)
-            
+        self.current_rbs = self.total_rbs
     def init_user_properties(self):
         """Initialize each user's values."""
         for user in self.users:

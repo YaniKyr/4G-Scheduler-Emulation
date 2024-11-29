@@ -24,14 +24,12 @@ def print_results(base_station):
     print(tabulate(data, headers=headers, tablefmt="grid"))
 
 def results(base_station, num_ttis: int,scheduler,verbose: bool = False):
+    
     print(f"\n--- {scheduler} Scheduling ---")
     count = 0
     for tti in range(num_ttis):
         base_station.current_rbs = base_station.total_rbs
         count += 1
-        #print(f"\nTTI {tti + 1}:")
-        #for user in base_station.users:
-        #    print(f"User {user.id}: Queue Delay: {user.queue_delay} TTIs")
         if scheduler == 'round_robin':
             if base_station.round_robin_scheduler():
                 break
@@ -42,11 +40,12 @@ def results(base_station, num_ttis: int,scheduler,verbose: bool = False):
     calculate_performance_metrics(base_station)
 
     # Calculate total delay for RR
-    rr_total_delay = sum(user.queue_delay for user in base_station.users)
-    print(f"\nTotal TTIs (Round Robin): {count}")
-    print(f"Total Queue Delay (Round Robin): {rr_total_delay} TTIs")
-    print_results(base_station)
-    return  base_station.fairness_index, base_station.total_throughput
+    total_delay = sum(user.queue_delay for user in base_station.users)
+    if not verbose:
+        print(f"\nTotal TTIs (Round Robin): {count}")
+        print(f"Total Queue Delay (Round Robin): {total_delay} TTIs")
+        print_results(base_station)
+    return  base_station.fairness_index, base_station.total_throughput, total_delay
 
 def run_simulation(base_station, num_ttis: int, verbose: bool = False):
     """Run the network simulation for a specified number of TTIs."""
@@ -55,43 +54,77 @@ def run_simulation(base_station, num_ttis: int, verbose: bool = False):
     pf_total_delay = 0
 
     # Round Robin Scheduling
-    rfairnessidx, rthroughput = results(base_station, num_ttis=num_ttis,scheduler='round_robin', verbose=verbose)
+    rfairnessidx, rthroughput, rr_delay = results(base_station, num_ttis=num_ttis,scheduler='round_robin', verbose=verbose)
 
     base_station.update_user_properties()
+
     # Reset user properties for Proportional Fair Scheduling
-    pffairnessidx, pfthroughput = results(base_station, num_ttis=num_ttis,scheduler='proportional_fair', verbose=verbose)
+    pffairnessidx, pfthroughput, pf_delay = results(base_station, num_ttis=num_ttis,scheduler='proportional_fair', verbose=verbose)
     
     print("\n--- Delay Comparison ---")
     print(f"Total Delay (Round Robin): {rr_total_delay} TTIs")
     print(f"Total Delay (Proportional Fair): {pf_total_delay} TTIs")
 
-    return rfairnessidx, pffairnessidx, rthroughput, pfthroughput
+    return rfairnessidx, pffairnessidx, rthroughput, pfthroughput, rr_delay, pf_delay
 
 if __name__ == "__main__":
     # Example usage
     num_users = 10
-    total_rbs = 100 # Total number of Resource Blocks
-    num_ttis = 5000  # Number of Transmission Time Intervals to simulate
-    rr_throughput = []
-    pf_throughput = []
-    rr_fairidx = []
-    pf_fairidx = []
-    index = []
-    for i in range(1,30):
-        base_station = Bs.BaseStation(num_users=num_users, total_rbs=total_rbs)
-        rr_fairness_index,pf_fairness_index, rrth,prth =run_simulation(base_station,num_ttis=num_ttis, verbose= True)
-        
-        rr_throughput.append(rrth)
-        pf_throughput.append(prth)
-        rr_fairidx.append(rr_fairness_index)
-        pf_fairidx.append(pf_fairness_index)
-        index.append(i)
-        num_users = 10* i
 
-    plt.scatter(index, rr_fairidx, label='Round Robin Throughput', color='blue')
-    plt.scatter(index, pf_fairidx, label='Proportional Fair Throughput', color='red')
-    plt.xlabel('Simulation Run')
-    plt.ylabel('Fairness Index')
-    plt.title('Fairness Index Comparison')
-    plt.legend()
+    num_ttis = 5000  # Number of Transmission Time Intervals to simulate
+    rbs = [20,50,80,110,200, 500]
+    
+    
+    fig, axs = plt.subplots(2, 3, figsize=(18, 10))
+    fig, th = plt.subplots(2, 3, figsize=(18, 10))
+    fig, de = plt.subplots(2, 3, figsize=(18, 10))
+
+    for j, rb in enumerate(rbs):
+        rr_throughput, pf_throughput, rr_fairidx, pf_fairidx, rr_delay, pf_delay = [], [], [], [], [], []
+        index = []
+        
+        for i in range(1, 30):
+            base_station = Bs.BaseStation(num_users=num_users, total_rbs=rb)
+            rr_fairness_index, pf_fairness_index, rrth, prth, rrd, pfd = run_simulation(base_station, num_ttis=num_ttis, verbose=True)
+            
+            rr_throughput.append(rrth)
+            pf_throughput.append(prth)
+            rr_fairidx.append(rr_fairness_index)
+            pf_fairidx.append(pf_fairness_index)
+            rr_delay.append(rrd)
+            pf_delay.append(pfd)
+            index.append(num_users)
+            num_users = 10 * i
+            
+        # Fairness Index Plot
+        ax = axs[j // 3, j % 3]
+        ax.scatter(index, rr_fairidx, label='Round Robin Fairness Index', color='blue')
+        ax.scatter(index, pf_fairidx, label='Proportional Fair Fairness Index', color='red')
+        ax.set_xlabel('Simulation Run')
+        ax.set_ylabel('Fairness Index')
+        ax.set_title(f'Fairness Index Comparison for {rb} RBs')
+
+        # Throughput Plot
+        thh = th[j // 3, j % 3]
+        thh.scatter(index, rr_throughput, label='Round Robin Throughput', color='blue')
+        thh.scatter(index, pf_throughput, label='Proportional Fair Throughput', color='red')
+        thh.set_xlabel('Simulation Run')
+        thh.set_ylabel('Throughput (Kbps)')
+        thh.set_title(f'Throughput Comparison for {rb} RBs')
+
+        # Delay Plot
+        ded = de[j // 3, j % 3]
+        ded.scatter(index, rr_delay, label='Round Robin Delay', color='blue')
+        ded.scatter(index, pf_delay, label='Proportional Fair Delay', color='red')
+        ded.set_xlabel('Simulation Run')
+        ded.set_ylabel('Queue Delay (TTIs)')
+        ded.set_title(f'Delay Comparison for {rb} RBs')
+
+        # Add legend once, outside the loop
+        ax.legend()
+        thh.legend()
+        ded.legend()
+
+
+    plt.tight_layout()
     plt.show()

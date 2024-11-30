@@ -13,7 +13,7 @@ def calculate_fairness_index(base_station):
 
 def calculate_performance_metrics(base_station):
     """Calculate total throughput and fairness index at the end of each time step."""
-    base_station.total_throughput = sum(user.throughput for user in base_station.users)
+    base_station.total_throughput = sum(user.throughput for user in base_station.users) / (len(base_station.users) * 1000)
     base_station.fairness_index = calculate_fairness_index(base_station)
     
 def print_results(base_station):

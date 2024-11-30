@@ -53,7 +53,7 @@ class BaseStation:
         return min(Cuser.totalRbs,  max(Cuser.minimumRBS() ,Cuser.minimumRBS()*allocation))
          
        
-    def round_robin_scheduler(self,MUS):
+    def round_robin_scheduler(self):
         """Distribute available resource blocks in a round-robin fashion."""
         for _ in range(len(self.queue)):
             user = self.queue.popleft()
@@ -71,12 +71,8 @@ class BaseStation:
                 self.queue.append(user)
                 continue
             
-            if  MUS == True: 
-                required_rbs = self.reqRBsFormula(user,self.queue)
-                print(f'==================================\n Iam at MUS ]\n ==================================\n')
-            elif MUS == False:
-                print(f'==================================\n Iam not at MUS ]\n ==================================')
-                required_rbs = math.ceil(user.rac / self.RBCapacity)
+            required_rbs = math.ceil(user.rac / self.RBCapacity)
+                
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
                 # User is not serviced this TTI
@@ -106,7 +102,7 @@ class BaseStation:
             return True
 
  
-    def proportional_fair_scheduler(self,MUS):
+    def proportional_fair_scheduler(self):
         """Distribute available resource blocks based on proportional fairness."""
         self.current_rbs = self.calculate_available_resources()
         self.queue = deque(self.pfPriority())
@@ -122,12 +118,9 @@ class BaseStation:
                 user.current_delay -= 1
                 self.queue.append(user)
                 continue
-            if  MUS == True: 
-                required_rbs = self.reqRBsFormula(user,self.queue)
-                print(f'==================================\n Iam at MUS ]\n ==================================\n')
-            elif MUS == False:
-                print(f'==================================\n Iam not at MUS ]\n ==================================')
-                required_rbs = math.ceil(user.rac / self.RBCapacity)
+            
+            required_rbs = self.reqRBsFormula(user,self.queue)
+                
                 
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
@@ -176,4 +169,4 @@ class BaseStation:
             user.rac = user.generate_rac()
             user.InitRac = user.rac
             user.totalRbs = math.ceil(user.rac/self.RBCapacity)
-            #print('User:',user.id,'RAC:',user.rac,'Total Rbs:',user.totalRbs)
+            print('User:',user.id,'RAC:',user.rac,'Total Rbs:',user.totalRbs)

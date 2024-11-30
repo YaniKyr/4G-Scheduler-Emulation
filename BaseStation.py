@@ -71,7 +71,7 @@ class BaseStation:
                 self.queue.append(user)
                 continue
 
-            required_rbs = math.ceil(user.rac/self.RBCapacity)
+            required_rbs = self.reqRBsFormula(user,self.queue)
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
                 # User is not serviced this TTI
@@ -118,7 +118,7 @@ class BaseStation:
                 self.queue.append(user)
                 continue
 
-            required_rbs = math.ceil(user.rac/self.RBCapacity)
+            required_rbs = self.reqRBsFormula(user,self.queue)
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
                 # User is not serviced this TTI

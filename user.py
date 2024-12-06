@@ -9,7 +9,7 @@ class User():
         self.rac = 0  # Resource allocation demand (RAC)
         self.average_throughput = 0  # Initialize average throughput
         self.allocated_rbs = 0
-        self.totalRbs = 0
+       
         self.instantaneous_rate = 1
         self.InitRac = 0
         self.queue_delay = 0  

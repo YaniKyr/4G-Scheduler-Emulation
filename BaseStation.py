@@ -15,7 +15,7 @@ class BaseStation:
         self.a = 5
         self.RBCapacity = 150  # Capacity of each RB in Kbps
         self.queue = deque(self.users)
-        self.N_PF = 1 * self.RBCapacity/0.01
+        
     def generate_traffic_type(self) -> str:
         """Randomly assign a traffic type to each user."""
         traffic_types = ["video_streaming", "web_browsing", "voice_call"]
@@ -71,7 +71,7 @@ class BaseStation:
                 self.queue.append(user)
                 continue
             
-            required_rbs = math.ceil(user.rac / self.RBCapacity)
+            required_rbs = math.ceil(user.rac/self.RBCapacity)
                 
             allocated_rbs = min(self.current_rbs, required_rbs)
             if self.current_rbs < allocated_rbs:
@@ -119,7 +119,7 @@ class BaseStation:
                 self.queue.append(user)
                 continue
             
-            required_rbs = self.reqRBsFormula(user,self.queue)
+            required_rbs = math.ceil(user.rac/self.RBCapacity)
                 
                 
             allocated_rbs = min(self.current_rbs, required_rbs)
@@ -140,7 +140,7 @@ class BaseStation:
 
 
             smoothing_factor = 0.5
-            user.average_throughput = (1 - 1/self.N_PF) * user.average_throughput + (1/self.N_PF) * user.throughput
+            user.average_throughput = (1 - self.a) * user.average_throughput + self.a  * user.throughput
 
             if user.rac > 0:
                 self.queue.append(user)

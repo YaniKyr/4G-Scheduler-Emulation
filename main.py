@@ -100,7 +100,8 @@ if __name__ == "__main__":
         ax = axs[j // 3, j % 3]
         ax.scatter(index, rr_fairidx, label='Round Robin Fairness Index', color='blue')
         ax.scatter(index, pf_fairidx, label='Proportional Fair Fairness Index', color='red')
-        ax.set_xlabel('Simulation Run')
+        ax.set_ylim(0, 1)
+        ax.set_xlabel('Number of Users')
         ax.set_ylabel('Fairness Index')
         ax.set_title(f'Fairness Index Comparison for {rb} RBs')
 
@@ -108,15 +109,16 @@ if __name__ == "__main__":
         thh = th[j // 3, j % 3]
         thh.scatter(index, rr_throughput, label='Round Robin Throughput', color='blue')
         thh.scatter(index, pf_throughput, label='Proportional Fair Throughput', color='red')
-        thh.set_xlabel('Simulation Run')
-        thh.set_ylabel('Throughput (Kbps)')
+        thh.set_ylim(0, 1.5)
+        thh.set_xlabel('Number of Users')
+        thh.set_ylabel('Throughput (Mbps)')
         thh.set_title(f'Throughput Comparison for {rb} RBs')
 
         # Delay Plot
         ded = de[j // 3, j % 3]
         ded.scatter(index, rr_delay, label='Round Robin Delay', color='blue')
         ded.scatter(index, pf_delay, label='Proportional Fair Delay', color='red')
-        ded.set_xlabel('Simulation Run')
+        ded.set_xlabel('Number of Users')
         ded.set_ylabel('Queue Delay (TTIs)')
         ded.set_title(f'Delay Comparison for {rb} RBs')
 
